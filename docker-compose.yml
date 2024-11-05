@@ -1,0 +1,101 @@
+services:
+  spark-master:
+    image: bitnami/spark:3.5
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_WORKER_MEMORY=2g
+    networks:
+      - sd_analytics
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+  spark-worker-1:
+    image: bitnami/spark:3.5
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    networks:
+      - sd_analytics
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+
+  spark-worker-2:
+    image: bitnami/spark:3.5
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    networks:
+      - sd_analytics
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8081"
+
+  spark-worker-3:
+    image: bitnami/spark:3.5
+    container_name: spark-worker-3
+    hostname: spark-worker-3
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    networks:
+      - sd_analytics
+    depends_on:
+      - spark-master
+    ports:
+      - "8083:8081"
+
+  jupyter:
+    image: pyspark-jup:1.0
+    container_name: jupyter
+    hostname: jupyter
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SPARK_MASTER_URL: spark://spark-master:7077
+      PYSPARK_PYTHON: python3
+    ports:
+      - "8888:8888"
+    networks:
+      - sd_analytics
+    volumes:
+      - ./sd_analytics_notebooks:/home/sd_analytics_notebooks
+      - ./config/jupyter_lab_config.py:/root/.jupyter/jupyter_lab_config.py
+    depends_on:
+      - spark-master
+    command: jupyter lab --port=8888 --ip=0.0.0.0 --allow-root --NotebookApp.token=''
+
+  sd-postgres:
+    image: postgres:12.20-alpine3.20
+    container_name: sd-postgres
+    environment:
+      POSTGRES_USER: sd_analytics
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sd_analytics
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data/pgdata
+      - ./sql/scripts:/sql_scripts
+      - ./sql/space_data:/space_data
+    networks:
+      - sd_analytics
+
+networks:
+  sd_analytics:
+    driver: bridge
